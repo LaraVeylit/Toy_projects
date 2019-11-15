@@ -1,0 +1,85 @@
+---
+title: "Household Income"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Learning goals
+
+1. Learn how to scrape data from webpages
+2. Clean data (that is messy) in a form that is useable and tidy
+3. Build a GIF 
+
+Here, we will explore household income data from the US (taken from Wikipedia).
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(rvest)
+
+url <- "https://en.wikipedia.org/wiki/Household_income_in_the_United_States"
+
+raw_html <- url %>% 
+  read_html() %>% 
+  html_table(fill=T)
+
+#Clean data and put in long format
+pop_df <- raw_html %>% 
+  chuck(9) %>% 
+  select(-Rank, -"+/- *") %>%
+  mutate_all(funs(str_replace(., ",", ""))) %>%
+  mutate_all(funs(str_replace(., "[$]", "")))  %>%
+  gather(key="year", value="income", `2007`:`2017`) %>%
+    mutate_at(vars(year, 
+                   income), 
+              funs(as.numeric)) %>% 
+    mutate(State=tolower(State))
+
+head(pop_df)
+```
+
+Now we want to take spatial data and link it to the cells we have for each state. Then, we can map median income across states. Finally, I will create a GIF showing income changing anually across the US.
+
+Step 1 : get spatial data and clean data so we can plot data for income.
+
+```{r, message=FALSE}
+library(maps)
+us_states <- map_data("state")
+
+#rename for joining
+us_states <- rename(us_states, State=region)
+
+#link the pop income data to us spatial data,
+# removing useless column
+
+us_states_income <- left_join(us_states, pop_df) %>%
+  select(-subregion)
+
+```
+
+```{r, message=F}
+library(gganimate)
+library(png)
+library(transformr)
+library(magick)
+
+map.ani <- ggplot(data = us_states_income,
+                  aes(x = long, y = lat,
+                      group = group, fill = income)) +
+  geom_polygon(color = "gray90", size = 0.1) +
+  coord_map(projection = "albers", lat0 = 39, lat1 = 45) +
+  ggthemes::theme_map() +
+  # Here comes the gganimate specific bits
+ labs(title = 'Year: {current_frame}') +
+  transition_manual(frames=year) +
+  scale_color_viridis_d() +
+  enter_fade() +
+  exit_fade()
+
+animate(map.ani, height = 800, width =800)
+
+```
+
+For compiled example:
+
+file:///home/larav/Documents/For_GitHub/Examples_for_Github/Household_Income.html
