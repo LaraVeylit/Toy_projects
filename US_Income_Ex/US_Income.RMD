@@ -79,7 +79,3 @@ map.ani <- ggplot(data = us_states_income,
 animate(map.ani, height = 800, width =800)
 
 ```
-
-For compiled example:
-
-file:///home/larav/Documents/For_GitHub/Examples_for_Github/Household_Income.html
